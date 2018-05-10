@@ -2494,6 +2494,11 @@ func schedule() {
 		execute(_g_.m.lockedg.ptr(), false) // Never returns.
 	}
 
+	if _g_.m.mgroupcount > 0 {
+		gp, _ := mgroupwaitforg()
+		execute(gp, false) // Never returns.
+	}
+
 	// We should not schedule away from a g that is executing a cgo call,
 	// since the cgo call is using the m's g0 stack.
 	if _g_.m.incgo {
@@ -2546,6 +2551,11 @@ top:
 	// start a new spinning M.
 	if _g_.m.spinning {
 		resetspinning()
+	}
+
+	if (gp.mgroup != 0) && (gp.mgroup.ptr() != _g_.m) {
+		startmgroupg(gp)
+		goto top
 	}
 
 	if gp.lockedm != 0 {

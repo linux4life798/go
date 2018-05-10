@@ -387,6 +387,8 @@ type g struct {
 	timer          *timer         // cached timer for time.Sleep
 	selectDone     uint32         // are we participating in a select and did someone win the race?
 
+	mgroup muintptr
+
 	// Per-G GC state
 
 	// gcAssistBytes is this G's GC assist credit in terms of
@@ -458,6 +460,27 @@ type m struct {
 	syscalltick   uint32
 	thread        uintptr // thread handle
 	freelink      *m      // on sched.freem
+
+	// M runnable queue.
+
+	mgrouplock   mutex
+	mgroupcount  uint32
+	mgroupstatus uint32
+
+	// Queue of runnable goroutines. Accessed without lock.
+	runqhead uint32
+	runqtail uint32
+	runq     [2000]guintptr
+	// runnext, if non-nil, is a runnable G that was ready'd by
+	// the current G and should be run next instead of what's in
+	// runq if there's time remaining in the running G's time
+	// slice. It will inherit the time left in the current time
+	// slice. If a set of goroutines is locked in a
+	// communicate-and-wait pattern, this schedules that set as a
+	// unit and eliminates the (potentially large) scheduling
+	// latency that otherwise arises from adding the ready'd
+	// goroutines to the end of the run queue.
+	runnext guintptr
 
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.
